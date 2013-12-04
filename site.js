@@ -13,6 +13,9 @@ function Main() {
 		main.lastTime = time;
 		main.canvas.width = window.innerWidth;
 		main.canvas.height = window.innerHeight;
+		for (var i = 0; i < main.bubbles.length; ++i) {
+			main.bubbles[i].step(deltaTime);
+		}
 		main.render(main.context);
 	}
 	this.render = function(c) {
@@ -29,8 +32,10 @@ function Main() {
 
 function Bubble(image) {
 	this.image = image;
-	this.x = main.canvas.width / 2;
-	this.y = main.canvas.height / 2;
+	this.x = main.canvas.width / 3;
+	this.y = main.canvas.height / 3;
+	this.vx = 0;
+	this.vy = 0;
 	this.z = main.lastZ++;
 	this.radius = 40;
 	this.render = function(c) {
@@ -45,6 +50,16 @@ function Bubble(image) {
 		c.arc(this.x, this.y, this.radius + 2, 0, Math.PI * 2, true);
 		c.stroke();
 		c.restore();
+	}
+	this.step = function(deltaTime) {
+		var angle = Math.atan2(this.y - main.canvas.height / 2, this.x - main.canvas.width / 2);
+		this.applyForce(-Math.cos(angle) * .1, -Math.sin(angle) * .1);
+		this.x += this.vx;
+		this.y += this.vy;
+	}
+	this.applyForce = function(x, y) {
+		this.vx += x;
+		this.vy += y;
 	}
 	main.bubbles.push(this);
 }
