@@ -32,8 +32,8 @@ function Main() {
 
 function Bubble(image) {
 	this.image = image;
-	this.x = main.canvas.width / 3;
-	this.y = main.canvas.height / 3;
+	this.x = main.canvas.width / 2;
+	this.y = main.canvas.height / 2;
 	this.vx = 0;
 	this.vy = 0;
 	this.z = main.lastZ++;
@@ -53,9 +53,23 @@ function Bubble(image) {
 	}
 	this.step = function(deltaTime) {
 		var angle = Math.atan2(this.y - main.canvas.height / 2, this.x - main.canvas.width / 2);
-		this.applyForce(-Math.cos(angle) * .1, -Math.sin(angle) * .1);
+		this.applyForce(-Math.cos(angle) * .02 * deltaTime, -Math.sin(angle) * .02 * deltaTime);
+		for (var i = 0; i < main.bubbles.length; ++i) {
+			if (main.bubbles[i] !== this) {
+				var repel = Math.atan2(this.y - main.bubbles[i].y, this.x - main.bubbles[i].x);
+				var distance = Math.sqrt(Math.pow(this.y - main.bubbles[i].y, 2) + Math.pow(this.x - main.bubbles[i].x, 2));
+				console.log(distance);
+				if (distance < this.radius / 3) {
+					continue;
+				}
+				this.applyForce((Math.cos(repel) * 15) / Math.pow(distance, 1), (Math.sin(repel) * 15) / Math.pow(distance, 1));
+			}
+		}
 		this.x += this.vx;
 		this.y += this.vy;
+		this.vx -= this.vx / 100;
+		this.vy -= this.vy / 100;
+
 	}
 	this.applyForce = function(x, y) {
 		this.vx += x;
@@ -64,11 +78,23 @@ function Bubble(image) {
 	main.bubbles.push(this);
 }
 
+function start() {
+	for (var i = 0; i < main.bubbles.length; ++i) {
+		main.bubbles[i].x = main.canvas.width / 2;
+		main.bubbles[i].y = main.canvas.height / 2;
+		var angle = Math.random() * 2 * Math.PI;
+		var velocity = Math.random() * 6 + 2;
+		main.bubbles[i].vx = Math.sin(angle) * velocity;
+		main.bubbles[i].vy = Math.cos(angle) * velocity;
+	}
+}
+
 function uploadImageClick() {
 	document.getElementById('uploadFile').click();
 }
 
 function uploadImage(e) {
+	console.log('Attempting to upload image');
 	var reader = new FileReader();
 	reader.onload = function(event) {
 		var img = new Image();
