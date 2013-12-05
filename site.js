@@ -1,4 +1,18 @@
 var main = new Main();
+document.addEventListener("keydown", function(e) {
+	if (e.keyCode === 49) {
+		main.paused = 1;
+	} else if (e.keyCode === 50) {
+		main.paused = 2;
+	} else if (e.keyCode === 27) {
+		if (main.paused !== 0) {
+			main.paused = 0;
+			for (var i = 0; i < main.bubbles.length; ++i) {
+				main.bubbles[i].highlighted = 0;
+			}
+		}
+	}
+}, true);
 var uploadFileButton = document.getElementById('uploadFile');
 uploadFileButton.addEventListener('change', uploadImage, false);
 function Main() {
@@ -6,15 +20,40 @@ function Main() {
 	this.context = this.canvas.getContext('2d');
 	this.lastTime = +new Date();
 	this.bubbles = [];
+	this.allLinks = [];
 	this.lastZ = 0;
+	this.paused = 0;
+	this.mouse = new Mouse(this.canvas);
 	this.step = function() {
 		var time = +new Date();
 		var deltaTime = time - main.lastTime;
 		main.lastTime = time;
 		main.canvas.width = window.innerWidth;
 		main.canvas.height = window.innerHeight;
-		for (var i = 0; i < main.bubbles.length; ++i) {
-			main.bubbles[i].step(deltaTime);
+		if (main.paused === 0) {
+			for (var i = 0; i < main.bubbles.length; ++i) {
+				main.bubbles[i].step(deltaTime);
+			}
+		} else {
+			//Determine which bubble is being highlighted
+			var underCursor = [];
+			for (var i = 0; i < main.bubbles.length; ++i) {
+				var dist = Math.sqrt(Math.pow(main.mouse.y - main.bubbles[i].y, 2) + Math.pow(main.mouse.x - main.bubbles[i].x, 2));
+				if (dist <= main.bubbles[i].radius) {
+					underCursor.push(main.bubbles[i]);
+				} else {
+					main.bubbles[i].highlighted = 0;
+				}
+			}
+			if (underCursor.length > 0) {
+				underCursor.sort(function(a, b) {
+					return a.z - b.z;
+				});
+				underCursor[0].highlighted = main.paused;
+			}
+			for (var i = 1; i < underCursor.length; ++i) {
+				underCursor[i].highlighted = 0;
+			}
 		}
 		main.render(main.context);
 	}
@@ -38,6 +77,7 @@ function Bubble(image) {
 	this.vy = 0;
 	this.z = main.lastZ++;
 	this.radius = 40;
+	this.highlighted = 0;
 	this.render = function(c) {
 		c.save();
 		c.beginPath();
@@ -46,23 +86,32 @@ function Bubble(image) {
 		c.clip();
 		c.drawImage(this.image, 0, 0, this.image.width, this.image.height, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
 		c.strokeStyle = '#444';
-		c.lineWidth = 4;
+		if (this.highlighted === 1) {
+			c.strokeStyle = 'rgb(0, 255, 0)';
+		} else if (this.highlighted === 2) {
+			c.strokeStyle = 'rgb(255, 0, 0)';
+		}
+		c.lineWidth = this.highlighted === 0 ? 4 : 6;
 		c.arc(this.x, this.y, this.radius + 2, 0, Math.PI * 2, true);
 		c.stroke();
 		c.restore();
 	}
 	this.step = function(deltaTime) {
+		var spacingConst = 10;
 		var angle = Math.atan2(this.y - main.canvas.height / 2, this.x - main.canvas.width / 2);
+		var dist = Math.sqrt(Math.pow(this.y - main.canvas.height / 2, 2) + Math.pow(this.x - main.canvas.width / 2, 2));
 		this.applyForce(-Math.cos(angle) * .02 * deltaTime, -Math.sin(angle) * .02 * deltaTime);
+		if (dist > 1) {
+			this.applyForce(Math.cos(angle) * spacingConst / dist, Math.sin(angle) * spacingConst / dist);
+		}
 		for (var i = 0; i < main.bubbles.length; ++i) {
 			if (main.bubbles[i] !== this) {
 				var repel = Math.atan2(this.y - main.bubbles[i].y, this.x - main.bubbles[i].x);
 				var distance = Math.sqrt(Math.pow(this.y - main.bubbles[i].y, 2) + Math.pow(this.x - main.bubbles[i].x, 2));
-				console.log(distance);
 				if (distance < this.radius / 3) {
 					continue;
 				}
-				this.applyForce((Math.cos(repel) * 15) / Math.pow(distance, 1), (Math.sin(repel) * 15) / Math.pow(distance, 1));
+				this.applyForce((Math.cos(repel) * spacingConst) / Math.pow(distance, 1), (Math.sin(repel) * spacingConst) / Math.pow(distance, 1));
 			}
 		}
 		this.x += this.vx;
@@ -76,6 +125,24 @@ function Bubble(image) {
 		this.vy += y;
 	}
 	main.bubbles.push(this);
+}
+
+function Mouse(canvas) {
+	this.x = 0;
+	this.y = 0;
+    canvas.addEventListener('mousemove', function(evt) {
+    	var mousePos = getMousePosition(canvas, evt);
+    	main.mouse.x = mousePos.x;
+    	main.mouse.y = mousePos.y;
+    }, false);
+}
+
+function getMousePosition(canvas, evt) {
+    var rect = canvas.getBoundingClientRect();
+    return {
+      x: evt.clientX - rect.left,
+      y: evt.clientY - rect.top
+    };
 }
 
 function start() {
